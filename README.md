@@ -4,7 +4,8 @@
 
 This tool implements the method described in 
 
-_Hu T, Sahiner B, Guan S, Mikailov M, Cha K, Samuelson F, Petrick N. Statistical testing of agreement in overlap-based performance between an AI segmentation device and a multi-expert human panel without requiring a reference standard. J Med Imaging (Bellingham). 2025 Sep;12(5):055003. doi: 10.1117/1.JMI.12.5.055003. Epub 2025 Oct 22. PMID: 41132782; PMCID: PMC12543030 _
+**Hu T, Sahiner B, Guan S, Mikailov M, Cha K, Samuelson F, Petrick N. Statistical testing of agreement in overlap-based performance between an AI segmentation device and a multi-expert human panel without requiring a reference standard. J Med Imaging (Bellingham). 2025 Sep;12(5):055003. doi: 10.1117/1.JMI.12.5.055003. Epub 2025 Oct 22. PMID: 41132782; PMCID: PMC12543030.**
+
 
 ## Overview
 
