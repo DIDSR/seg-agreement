@@ -51,4 +51,4 @@ Returns confidence intervals for the difference in disagreement rates:
 
 ## Contact
 
-For questions regarding regulatory use or methodology, please contact the development team.
+For questions regarding regulatory use or methodology, please contact Tingting.Hu@fda.hhs.gov.
