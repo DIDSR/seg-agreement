@@ -2,7 +2,7 @@
 # ==================================================
 
 # Load the function
-source("segmentation_agreement_ci.R")
+source("segmentationagreementci.R")
 
 # Create example data for 3 observers
 set.seed(123)
