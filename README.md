@@ -8,12 +8,12 @@ A R function for computing confidence intervals  when comparing an AI segmentati
 
 ## Quick Start
 
-r
-
-Source the function
+the programming language: R
+```
+## Source the function
 source("segmentationagreementci.R")
 
-Run analysis
+## Run analysis
 result <- computesegmentationagreement_ci(
 
 alpha = 0.05,                    # 95% confidence level
@@ -21,9 +21,9 @@ segmentation_data = your_data,   # Your DSC data matrix
 n_observer = 3                   # Number of observers
 )
 
-View results
+## View results
 print(result)
-
+```
 
 ## Input Data Format
 
