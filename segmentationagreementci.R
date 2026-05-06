@@ -13,129 +13,166 @@
 #' @return List containing confidence intervals and metadata
 
 compute_segmentation_agreement_ci <- function(alpha = 0.05,
-                                              segmentation_data,
-                                              n_observer,
-                                              n_bootstrap = 1000,
-                                              seed = 123) {
+                       segmentation_data,
+                       n_observer,
+                       n_bootstrap = 1000,
+                       seed = 123) {
 
-  # Input validation
-  if (!is.matrix(segmentation_data) && !is.data.frame(segmentation_data)) {
-    stop("segmentation_data must be a matrix or data.frame")
-  }
-  if (alpha <= 0 || alpha >= 1) {
-    stop("alpha must be between 0 and 1")
-  }
-  if (n_bootstrap < 100) {
-    warning("Recommend at least 1000 bootstrap samples for stable estimates")
-  }
-  if (!is.numeric(seed) || length(seed) != 1) {
-    stop("seed must be a single numeric value")
-  }
-  if (missing(n_observer) || !is.numeric(n_observer) || length(n_observer) != 1 || n_observer < 2) {
-    stop("n_observer must be a single integer >= 2")
-  }
+ # Input validation
+ if (!is.matrix(segmentation_data) && !is.data.frame(segmentation_data)) {
+  stop("segmentation_data must be a matrix or data.frame")
+ }
+ if (alpha <= 0 || alpha >= 1) {
+  stop("alpha must be between 0 and 1")
+ }
+ if (n_bootstrap < 100) {
+  warning("Recommend at least 1000 bootstrap samples for stable estimates")
+ }
+ if (!is.numeric(seed) || length(seed) != 1) {
+  stop("seed must be a single numeric value")
+ }
+ if (missing(n_observer) || !is.numeric(n_observer) || length(n_observer) != 1 || n_observer < 2) {
+  stop("n_observer must be a single integer >= 2")
+ }
 
-  # Validate column names and counts
-  observer_cols <- grepl("^DSC\\.observer\\.pair\\.", colnames(segmentation_data))
-  device_cols   <- grepl("^DSC\\.device\\.observer\\.pair\\.", colnames(segmentation_data))
+ # Validate column names and counts
+ observer_cols <- grepl("^DSC\\.observer\\.pair\\.", colnames(segmentation_data))
+ device_cols  <- grepl("^DSC\\.device\\.observer\\.pair\\.", colnames(segmentation_data))
 
-  n_observer_cols <- sum(observer_cols)
-  n_device_cols   <- sum(device_cols)
+ n_observer_cols <- sum(observer_cols)
+ n_device_cols  <- sum(device_cols)
 
-  # --- BUG FIX ---
-  # observer pairs  = n_observer * (n_observer - 1) / 2  (all unique observer-observer pairs)
-  # device&observer pairs = n_observer                   (one device vs. each observer)
-  expected_observer_pairs <- n_observer * (n_observer - 1) / 2    
-  expected_device_pairs   <- n_observer                            
 
-  # Check observer columns
-  if (n_observer_cols == 0) {
-    stop("Data must contain columns matching 'DSC.observer.pair.*'")
-  }
-  if (n_observer_cols != expected_observer_pairs) {
-    stop(sprintf(
-      "Expected %d observer pair columns for %d observers, but found %d columns matching 'DSC.observer.pair.*'",
-      expected_observer_pairs, n_observer, n_observer_cols
-    ))
-  }
+ # observer pairs = n_observer * (n_observer - 1) / 2 (all unique human expert-expert pairs)
+ # device&observer pairs = n_observer          (one device vs. each human expert)
+ expected_observer_pairs <- n_observer * (n_observer - 1) / 2
+ expected_device_pairs  <- n_observer
 
-  # Check device-observer columns
-  if (n_device_cols == 0) {
-    stop("Data must contain columns matching 'DSC.device.observer.pair.*'")
-  }
-  if (n_device_cols != expected_device_pairs) {
-    stop(sprintf(
-      "Expected %d device-observer pair columns for %d observers, but found %d columns matching 'DSC.device.observer.pair.*'",
-      expected_device_pairs, n_observer, n_device_cols
-    ))
-  }
+ # Check observer columns
+ if (n_observer_cols == 0) {
+  stop("Data must contain columns matching 'DSC.observer.pair.*'")
+ }
+ if (n_observer_cols != expected_observer_pairs) {
+  stop(sprintf(
+   "Expected %d observer pair columns for %d observers, but found %d columns matching 'DSC.observer.pair.*'",
+   expected_observer_pairs, n_observer, n_observer_cols
+  ))
+ }
 
-  # Internal function: compute delta for each observation
-  compute_delta <- function(row) {
-    observer_dsc <- row[observer_cols]
-    device_dsc   <- row[device_cols]
+ # Check device-observer columns
+ if (n_device_cols == 0) {
+  stop("Data must contain columns matching 'DSC.device.observer.pair.*'")
+ }
+ if (n_device_cols != expected_device_pairs) {
+  stop(sprintf(
+   "Expected %d device-observer pair columns for %d observers, but found %d columns matching 'DSC.device.observer.pair.*'",
+   expected_device_pairs, n_observer, n_device_cols
+  ))
+ }
 
-    observer_disagreement <- mean(1 - observer_dsc, na.rm = TRUE)
-    device_disagreement   <- mean(1 - device_dsc,   na.rm = TRUE)
+ # Internal function: compute delta for each observation
+ compute_delta <- function(row) {
+  observer_dsc <- row[observer_cols]
+  device_dsc  <- row[device_cols]
 
-    return(device_disagreement - observer_disagreement)
-  }
+  observer_disagreement <- mean(1 - observer_dsc, na.rm = TRUE)
+  device_disagreement  <- mean(1 - device_dsc,  na.rm = TRUE)
 
-  # Calculate deltas for all observations
-  deltas <- apply(segmentation_data, 1, compute_delta)
-  deltas <- deltas[is.finite(deltas)]
-  n_obs  <- length(deltas)
+  return(device_disagreement - observer_disagreement)
+ }
 
-  if (n_obs < 2) {
-    stop("Insufficient valid images for confidence interval estimation")
-  }
+ # Calculate deltas for all observations
+ deltas <- apply(segmentation_data, 1, compute_delta)
+ deltas <- deltas[is.finite(deltas)]
+ n_obs <- length(deltas)
 
-  # Point estimate
-  delta_est <- mean(deltas, na.rm = TRUE)
+ if (n_obs < 2) {
+  stop("Insufficient valid images for confidence interval estimation")
+ }
 
-  # Bootstrap confidence interval
-  set.seed(seed)
-  bootstrap_estimates <- replicate(n_bootstrap, {
-    bootstrap_sample <- sample(deltas, size = n_obs, replace = TRUE)
-    mean(bootstrap_sample, na.rm = TRUE)
-  })
+ # Point estimate
+ delta_est <- mean(deltas, na.rm = TRUE)
 
-  lower_bootstrap <- quantile(bootstrap_estimates, alpha / 2,     na.rm = TRUE)
-  upper_bootstrap <- quantile(bootstrap_estimates, 1 - alpha / 2, na.rm = TRUE)
+ # Bootstrap confidence interval
+ set.seed(seed)
+ bootstrap_estimates <- replicate(n_bootstrap, {
+  bootstrap_sample <- sample(deltas, size = n_obs, replace = TRUE)
+  mean(bootstrap_sample, na.rm = TRUE)
+ })
 
-  # Z-Wald confidence interval
-  delta_se   <- sd(deltas, na.rm = TRUE) / sqrt(n_obs)
-  z_critical <- qnorm(1 - alpha / 2)
+ lower_bootstrap <- quantile(bootstrap_estimates, alpha / 2,   na.rm = TRUE)
+ upper_bootstrap <- quantile(bootstrap_estimates, 1 - alpha / 2, na.rm = TRUE)
 
-  lower_wald <- delta_est - z_critical * delta_se
-  upper_wald <- delta_est + z_critical * delta_se
+ # Z-Wald confidence interval
+ delta_se  <- sd(deltas, na.rm = TRUE) / sqrt(n_obs)
+ z_critical <- qnorm(1 - alpha / 2)
 
-  results <- list(
-    delta_est         = delta_est,
-    lower_bootstrap   = lower_bootstrap,
-    upper_bootstrap   = upper_bootstrap,
-    lower_wald        = lower_wald,
-    upper_wald        = upper_wald,
-    n_images          = n_obs,
-    n_observers       = n_observer,
-    confidence_level  = 1 - alpha,
-    n_bootstrap_samples = n_bootstrap
-  )
+ lower_wald <- delta_est - z_critical * delta_se
+ upper_wald <- delta_est + z_critical * delta_se
 
-  class(results) <- "segmentation_agreement_ci"
-  return(results)
+ results <- list(
+  delta_est     = delta_est,
+  lower_bootstrap  = lower_bootstrap,
+  upper_bootstrap  = upper_bootstrap,
+  lower_wald    = lower_wald,
+  upper_wald    = upper_wald,
+  n_images     = n_obs,
+  n_observers    = n_observer,
+  confidence_level = 1 - alpha,
+  n_bootstrap_samples = n_bootstrap
+ )
+
+ class(results) <- "segmentation_agreement_ci"
+ return(results)
 }
 
 # Print method
 print.segmentation_agreement_ci <- function(x, digits = 4, ...) {
-  cat("Segmentation Agreement Analysis\n")
-  cat("==============================\n")
-  cat("Point Estimate (Delta):", round(x$delta_est, digits), "\n")
-  cat("Confidence Level:", x$confidence_level * 100, "%\n\n")
-  cat("Bootstrap CI: [", round(x$lower_bootstrap, digits), ", ",
-      round(x$upper_bootstrap, digits), "]\n", sep = "")
-  cat("Z-Wald CI:    [", round(x$lower_wald, digits), ", ",
-      round(x$upper_wald, digits), "]\n\n", sep = "")
-  cat("Sample Size:", x$n_images, "images\n")
-  cat("Bootstrap Samples:", x$n_bootstrap_samples, "\n")
+ cat("Segmentation Agreement Analysis\n")
+ cat("==============================\n")
+ cat("Point Estimate (Delta):", round(x$delta_est, digits), "\n")
+ cat("Confidence Level:", x$confidence_level * 100, "%\n\n")
+ cat("Bootstrap CI: [", round(x$lower_bootstrap, digits), ", ",
+   round(x$upper_bootstrap, digits), "]\n", sep = "")
+ cat("Z-Wald CI:  [", round(x$lower_wald, digits), ", ",
+   round(x$upper_wald, digits), "]\n\n", sep = "")
+ cat("Sample Size:", x$n_images, "images\n")
+ cat("Bootstrap Samples:", x$n_bootstrap_samples, "\n")
+
+ # ============================================================
+ # DISCLAIMER - Catalog of Regulatory Science Tools
+ # ============================================================
+ cat("\n")
+ cat("************************************************************\n")
+ cat("*                      DISCLAIMER                         *\n")
+ cat("*        About the Catalog of Regulatory Science Tools     *\n")
+ cat("************************************************************\n")
+ cat("\n")
+ cat(strwrap(paste(
+  "The enclosed tool is part of the Catalog of Regulatory Science Tools,",
+  "which provides a peer-reviewed resource for stakeholders to use where",
+  "standards and qualified Medical Device Development Tools (MDDTs) do not",
+  "yet exist. These tools do not replace FDA-recognized standards or MDDTs.",
+  "This catalog collates a variety of regulatory science tools that the",
+  "FDA's Center for Devices and Radiological Health's (CDRH) Office of",
+  "Science and Engineering Labs (OSEL) developed. These tools use the most",
+  "innovative science to support medical device development and patient",
+  "access to safe and effective medical devices."
+ ), width = 60), sep = "\n")
+ cat("\n\n")
+ cat(strwrap(paste(
+  "If you are considering using a tool from this catalog in your marketing",
+  "submissions, note that these tools have not been qualified as Medical",
+  "Device Development Tools and the FDA has not evaluated the suitability",
+  "of these tools within any specific context of use. You may request",
+  "feedback or meetings for medical device submissions as part of the",
+  "Q-Submission Program."
+ ), width = 60), sep = "\n")
+ cat("\n\n")
+ cat(strwrap(paste(
+  "For more information about the Catalog of Regulatory Science Tools,",
+  "email RST_CDRH@fda.hhs.gov."
+ ), width = 60), sep = "\n")
+ cat("\n")
+ cat("************************************************************\n")
 }
